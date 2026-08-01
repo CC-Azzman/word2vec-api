@@ -9,8 +9,11 @@ VECTORS_URL = "https://githubusercontent.com"
 
 word_vectors = {}
 
-@app.on_event("startup")
-def load_vectors():
+def load_vectors_if_empty():
+    # If we already have the words, skip downloading
+    if word_vectors:
+        return
+        
     print("Downloading lightweight Word2Vec vectors...")
     try:
         response = requests.get(VECTORS_URL, timeout=30)
@@ -22,7 +25,6 @@ def load_vectors():
             if not parts or len(parts) < 2:
                 continue
 
-            # GRAB THE FIRST ELEMENT (THE WORD STRING)
             word = parts[0]
 
             # Limit to the top 12,000 most common words to keep memory super low on Render
@@ -39,6 +41,7 @@ def load_vectors():
         print(f"Successfully loaded {len(word_vectors)} words.")
     except Exception as e:
         print(f"Failed to load vectors: {e}")
+        raise HTTPException(status_code=500, detail="Word dictionary failed to load on the server. Try again in a moment.")
 
 def calculate_similarity(v1, v2):
     dot = sum(a*b for a, b in zip(v1, v2))
@@ -50,6 +53,9 @@ def calculate_similarity(v1, v2):
 
 @app.get("/similarity")
 def get_similarity(w1: str, w2: str):
+    # Ensure vectors are loaded safely when a request comes in
+    load_vectors_if_empty()
+
     w1 = w1.lower().strip()
     w2 = w2.lower().strip()
 
