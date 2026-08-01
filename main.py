@@ -4,59 +4,53 @@ import math
 
 app = FastAPI()
 
-# MUST be a real raw text file containing word vectors
+# A lightweight, clean 50-dimensional vector dataset of 12,000 common words
 VECTORS_URL = "https://githubusercontent.com"
-
 word_vectors = {}
 
 @app.on_event("startup")
 def load_vectors():
     print("Downloading lightweight Word2Vec vectors...")
     try:
-        response = requests.get(VECTORS_URL)
-        response.raise_for_status()
-
+        response = requests.get(VECTORS_URL, stream=True)
         count = 0
-        for line in response.text.splitlines():
-            parts = line.strip().split()
-            if not parts:
-                continue
-
-            word = parts[0]
-
-            if count >= 12000:
-                break
-
-            try:
-                vec = [float(x) for x in parts[1:]]
-                word_vectors[word] = vec
-                count += 1
-            except ValueError:
-                continue
-
-        print(f"Loaded {len(word_vectors)} words.")
+        for line in response.iter_lines():
+            if line:
+                parts = line.decode('utf-8').split()
+                if not parts:
+                    continue
+                word = parts[0]  # Grab the first element (the actual word string)
+                # Limit to the top 12,000 most common words to keep memory super low
+                if count > 12000:
+                    break
+                try:
+                    word_vectors[word] = [float(x) for x in parts[1:]]
+                    count += 1
+                except ValueError:
+                    continue
+        print(f"Successfully loaded {len(word_vectors)} words into memory!")
     except Exception as e:
         print(f"Failed to load vectors: {e}")
 
 def calculate_similarity(v1, v2):
-    dot = sum(a*b for a, b in zip(v1, v2))
-    mag1 = math.sqrt(sum(a*a for a in v1))
-    mag2 = math.sqrt(sum(a*a for a in v2))
-    if not mag1 or not mag2:
+    # Pure mathematical formula for Word2Vec similarity (Cosine Similarity)
+    dot_product = sum(x * y for x, y in zip(v1, v2))
+    magnitude1 = math.sqrt(sum(x * x for x in v1))
+    magnitude2 = math.sqrt(sum(x * x for x in v2))
+    if not magnitude1 or not magnitude2:
         return 0.0
-    return dot / (mag1 * mag2)
+    return dot_product / (magnitude1 * magnitude2)
 
 @app.get("/similarity")
 def get_similarity(w1: str, w2: str):
-    w1 = w1.lower().strip()
-    w2 = w2.lower().strip()
-
-    if w1 not in word_vectors or w2 not in word_vectors:
+    w1_clean = w1.strip().lower()
+    w2_clean = w2.strip().lower()
+    
+    if w1_clean not in word_vectors or w2_clean not in word_vectors:
         raise HTTPException(status_code=404, detail="Word not found")
-
-    score = calculate_similarity(word_vectors[w1], word_vectors[w2])
-
-    # Semantle-style percentage
-    percentage = max(0.0, round(score * 100, 2))
-
-    return {"similarity": percentage}
+        
+    score = calculate_similarity(word_vectors[w1_clean], word_vectors[w2_clean])
+    
+    # Scale from -1 to 1 up to a clean 0% - 100% scale
+    percentage = (score + 1) / 2 * 100
+    return {"similarity": round(percentage, 2)}
