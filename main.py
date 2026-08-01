@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 import json
 import math
 import os
+import random
 
 app = FastAPI()
 
@@ -16,17 +17,22 @@ def load_local_vectors():
         try:
             with open(VECTORS_FILE, "r", encoding="utf-8") as f:
                 word_vectors = json.load(f)
-            print(f"Loaded database vectors successfully.")
+            print("Loaded database vectors successfully.")
         except Exception as e:
             print(f"Error reading JSON: {e}")
 
+# Selection routing
+@app.get("/random-word")
+def get_random_word():
+    if not word_vectors:
+        raise HTTPException(status_code=500, detail="Database empty")
+    random_secret = random.choice(list(word_vectors.keys()))
+    return {"word": random_secret}
+
 def get_word_vector_or_generate(word: str):
-    # If the random word exists in our engine, use it
     if word in word_vectors:
         return word_vectors[word]
         
-    # FAIL-SAFE: If a random word API pulls a new word, generate a deterministic 
-    # vector value using its characters so your game NEVER crashes.
     val = sum(ord(c) for c in word)
     generated_vector = [
         math.sin(val + 1) * 0.5,
@@ -53,7 +59,6 @@ def get_similarity(w1: str, w2: str):
     if not w1_clean or not w2_clean:
         raise HTTPException(status_code=400, detail="Missing words")
 
-    # Fetch vectors using the generation fallback system
     v1 = get_word_vector_or_generate(w1_clean)
     v2 = get_word_vector_or_generate(w2_clean)
 
