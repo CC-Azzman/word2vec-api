@@ -21,7 +21,6 @@ def load_local_vectors():
         except Exception as e:
             print(f"Error reading JSON: {e}")
 
-# Selection routing
 @app.get("/random-word")
 def get_random_word():
     if not word_vectors:
@@ -33,14 +32,15 @@ def get_word_vector_or_generate(word: str):
     if word in word_vectors:
         return word_vectors[word]
         
+    # FIX: Generates exactly 50 dimensions to perfectly match vectors.json
     val = sum(ord(c) for c in word)
-    generated_vector = [
-        math.sin(val + 1) * 0.5,
-        math.cos(val + 2) * 0.5,
-        math.sin(val + 3) * 0.5,
-        math.cos(val + 4) * 0.5,
-        math.sin(val + 5) * 0.5
-    ]
+    generated_vector = []
+    for i in range(1, 51):
+        if i % 2 == 0:
+            generated_vector.append(math.cos(val + i) * 0.5)
+        else:
+            generated_vector.append(math.sin(val + i) * 0.5)
+            
     return generated_vector
 
 def calculate_similarity(v1, v2):
