@@ -4,7 +4,7 @@ import math
 
 app = FastAPI()
 
-# A lightweight, clean 50-dimensional vector dataset of 10,000 common words
+# A lightweight, clean 50-dimensional vector dataset of 12,000 common words
 VECTORS_URL = "https://githubusercontent.com"
 word_vectors = {}
 
@@ -17,7 +17,9 @@ def load_vectors():
         for line in response.iter_lines():
             if line:
                 parts = line.decode('utf-8').split()
-                word = parts[0]
+                if not parts:
+                    continue
+                word = parts[0]  # <-- FIX: Correctly extracts the text word string
                 # Limit to the top 12,000 most common words to keep memory super low
                 if count > 12000:
                     break
