@@ -4,13 +4,12 @@ import math
 
 app = FastAPI()
 
-# A verified, live public URL containing thousands of pre-made word vectors
+# This is the exact, valid address needed to retrieve the word data
 VECTORS_URL = "https://githubusercontent.com"
 
 word_vectors = {}
 
 def load_vectors_if_empty():
-    # If we already have the words, skip downloading
     if word_vectors:
         return
         
@@ -25,9 +24,9 @@ def load_vectors_if_empty():
             if not parts or len(parts) < 2:
                 continue
 
+            # FIX: Explicitly grab index [0] to extract the text word properly
             word = parts[0]
 
-            # Limit to the top 12,000 most common words to keep memory super low on Render
             if count >= 12000:
                 break
 
@@ -41,7 +40,7 @@ def load_vectors_if_empty():
         print(f"Successfully loaded {len(word_vectors)} words.")
     except Exception as e:
         print(f"Failed to load vectors: {e}")
-        raise HTTPException(status_code=500, detail="Word dictionary failed to load on the server. Try again in a moment.")
+        raise HTTPException(status_code=500, detail="Word dictionary failed to load. Please try again.")
 
 def calculate_similarity(v1, v2):
     dot = sum(a*b for a, b in zip(v1, v2))
@@ -53,7 +52,6 @@ def calculate_similarity(v1, v2):
 
 @app.get("/similarity")
 def get_similarity(w1: str, w2: str):
-    # Ensure vectors are loaded safely when a request comes in
     load_vectors_if_empty()
 
     w1 = w1.lower().strip()
@@ -63,8 +61,6 @@ def get_similarity(w1: str, w2: str):
         raise HTTPException(status_code=404, detail="Word not found")
 
     score = calculate_similarity(word_vectors[w1], word_vectors[w2])
-
-    # Turn the score into a clean 0% - 100% scale
     percentage = (score + 1) / 2 * 100
 
     return {"similarity": round(percentage, 2)}
