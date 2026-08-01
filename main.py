@@ -5,7 +5,7 @@ import math
 app = FastAPI()
 
 # MUST be a real raw text file containing word vectors
-VECTORS_URL = "https://raw.githubusercontent.com/<user>/<repo>/main/vectors.txt"
+VECTORS_URL = "https://githubusercontent.com"
 
 word_vectors = {}
 
