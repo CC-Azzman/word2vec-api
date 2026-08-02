@@ -50,7 +50,7 @@ def get_similarity(w1: str, w2: str):
 
     score = calculate_similarity(word_vectors[w1_clean], word_vectors[w2_clean])
     
-    # Scale mathematical cosine cleanly out of 100%
-    percentage = score * 100.0
+    # Scale mathematical cosine values (-1.0 to 1.0) cleanly onto a 0% - 100% scale
+    percentage = (score + 1) / 2 * 100.0
 
     return {"similarity": round(percentage, 2)}
