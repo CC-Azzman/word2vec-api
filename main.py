@@ -45,13 +45,22 @@ def get_similarity(w1: str, w2: str):
     if not w1_clean or not w2_clean:
         raise HTTPException(status_code=400, detail="Missing words")
 
-    # Safe fallback if a word isn't recognized
-    if w1_clean not in word_vectors or w2_clean not in word_vectors:
-        return {"similarity": 5.00}
-
     # If the words are identical, return 100% immediately
     if w1_clean == w2_clean:
         return {"similarity": 100.00}
+
+    # ========================================================
+    # UNRECOGNIZED WORD CAP: 0.00% - 5.00%
+    # Uses a hash function to generate fixed decimal scores in that window
+    # ========================================================
+    if w1_clean not in word_vectors or w2_clean not in word_vectors:
+        # Create a unique integer seed out of the guessed words
+        combined_string = f"{w1_clean}:{w2_clean}"
+        seed_hash = int(hashlib.md5(combined_string.encode('utf-8')).hexdigest(), 16)
+        
+        # Pulls a consistent value strictly within the 0.00 to 5.00 range
+        low_range_score = (seed_hash % 501) / 100.0
+        return {"similarity": round(low_range_score, 2)}
 
     v1 = word_vectors[w1_clean]
     v2 = word_vectors[w2_clean]
@@ -60,18 +69,14 @@ def get_similarity(w1: str, w2: str):
     score = calculate_similarity(v1, v2)
     raw_percentage = (score + 1) / 2 * 100.0
 
-    # ========================================================
-    # TRUE SEMANTIC CLUSTER BALANCER
-    # Strictly separates cross-category pairs from same-category pairs
-    # ========================================================
     if raw_percentage < 90.0:
-        # The words belong to completely separate categories! 
-        # Generate a small, dynamic baseline score using their specific spelling
-        val = sum(ord(c) for c in w1_clean + w2_clean)
-        final_percentage = 3.0 + (val % 11) + round((val % 100) / 100.0, 2)
+        # Cross-category matches also map into the fixed 0.00% - 5.00% baseline window
+        combined_string = f"{w1_clean}:{w2_clean}"
+        seed_hash = int(hashlib.md5(combined_string.encode('utf-8')).hexdigest(), 16)
+        low_range_score = (seed_hash % 501) / 100.0
+        final_percentage = low_range_score
     else:
-        # The words are in the exact same category!
-        # Stretch their values beautifully between 72.00% and 98.50%
+        # Matching category words stretch cleanly up into the hot zone tier
         final_percentage = 72.00 + ((raw_percentage - 90.0) / (100.0 - 90.0)) * 26.50
 
     return {"similarity": round(final_percentage, 2)}
