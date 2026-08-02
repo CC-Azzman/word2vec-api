@@ -44,24 +44,13 @@ def get_similarity(w1: str, w2: str):
     if not w1_clean or not w2_clean:
         raise HTTPException(status_code=400, detail="Missing words")
 
-    # If the word is missing entirely from our local list, handle it gracefully
-    neutral_vector = [0.0] * 50
-    v1 = word_vectors.get(w1_clean, neutral_vector)
-    v2 = word_vectors.get(w2_clean, neutral_vector)
+    # Safe fallback if a word isn't recognized in vectors.json
+    if w1_clean not in word_vectors or w2_clean not in word_vectors:
+        return {"similarity": 10.00}
 
-    if v1 == neutral_vector or v2 == neutral_vector:
-        return {"similarity": 0.00}
-
-    # Calculate raw geometric cosine score (-1.0 to 1.0)
-    raw_score = calculate_similarity(v1, v2)
+    score = calculate_similarity(word_vectors[w1_clean], word_vectors[w2_clean])
     
-    # FIX: Apply a contrast scaling curve to stretch out unrelated vs related words
-    # This pushes cross-category words down to near 0%, and matching categories up to near 100%
-    if raw_score <= 0.15:
-        # Unrelated categories get dropped heavily
-        percentage = max(0.0, raw_score * 20.0)
-    else:
-        # Matching categories get pushed into upper percentiles
-        percentage = 60.0 + ((raw_score - 0.15) / (1.0 - 0.15)) * 40.0
+    # Scale mathematical cosine cleanly out of 100%
+    percentage = score * 100.0
 
     return {"similarity": round(percentage, 2)}
