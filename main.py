@@ -44,13 +44,29 @@ def get_similarity(w1: str, w2: str):
     if not w1_clean or not w2_clean:
         raise HTTPException(status_code=400, detail="Missing words")
 
-    # Safe fallback if a word isn't recognized in vectors.json
+    # Safe fallback if a word isn't recognized
     if w1_clean not in word_vectors or w2_clean not in word_vectors:
-        return {"similarity": 10.00}
+        return {"similarity": 5.00}
+
+    # If the words are identical, return 100.00 immediately
+    if w1_clean == w2_clean:
+        return {"similarity": 100.00}
 
     score = calculate_similarity(word_vectors[w1_clean], word_vectors[w2_clean])
     
-    # Scale mathematical cosine values (-1.0 to 1.0) cleanly onto a 0% - 100% scale
-    percentage = (score + 1) / 2 * 100.0
+    # Scale mathematical cosine values (-1.0 to 1.0) onto a standard 0-100 baseline
+    raw_percentage = (score + 1) / 2 * 100.0
 
-    return {"similarity": round(percentage, 2)}
+    # ========================================================
+    # GAME INFLECTION CALIBRATION CURVE
+    # Chops off the ~59% cross-category baseline and stretches it
+    # ========================================================
+    baseline = 59.5
+    if raw_percentage <= baseline:
+        # Scale unrelated words dynamically between 0.00% and 8.00%
+        final_percentage = max(0.00, (raw_percentage / baseline) * 8.00)
+    else:
+        # Stretch matching categories beautifully between 40.00% and 99.50%
+        final_percentage = 40.00 + ((raw_percentage - baseline) / (100.0 - baseline)) * 59.50
+
+    return {"similarity": round(final_percentage, 2)}
