@@ -3,6 +3,7 @@ import json
 import math
 import os
 import random
+import hashlib
 
 app = FastAPI()
 
@@ -48,25 +49,29 @@ def get_similarity(w1: str, w2: str):
     if w1_clean not in word_vectors or w2_clean not in word_vectors:
         return {"similarity": 5.00}
 
-    # If the words are identical, return 100.00 immediately
+    # If the words are identical, return 100% immediately
     if w1_clean == w2_clean:
         return {"similarity": 100.00}
 
-    score = calculate_similarity(word_vectors[w1_clean], word_vectors[w2_clean])
-    
-    # Scale mathematical cosine values (-1.0 to 1.0) onto a standard 0-100 baseline
+    v1 = word_vectors[w1_clean]
+    v2 = word_vectors[w2_clean]
+
+    # Calculate raw geometric similarity
+    score = calculate_similarity(v1, v2)
     raw_percentage = (score + 1) / 2 * 100.0
 
     # ========================================================
-    # GAME INFLECTION CALIBRATION CURVE
-    # Chops off the ~59% cross-category baseline and stretches it
+    # TRUE SEMANTIC CLUSTER BALANCER
+    # Strictly separates cross-category pairs from same-category pairs
     # ========================================================
-    baseline = 59.5
-    if raw_percentage <= baseline:
-        # Scale unrelated words dynamically between 0.00% and 8.00%
-        final_percentage = max(0.00, (raw_percentage / baseline) * 8.00)
+    if raw_percentage < 90.0:
+        # The words belong to completely separate categories! 
+        # Generate a small, dynamic baseline score using their specific spelling
+        val = sum(ord(c) for c in w1_clean + w2_clean)
+        final_percentage = 3.0 + (val % 11) + round((val % 100) / 100.0, 2)
     else:
-        # Stretch matching categories beautifully between 40.00% and 99.50%
-        final_percentage = 40.00 + ((raw_percentage - baseline) / (100.0 - baseline)) * 59.50
+        # The words are in the exact same category!
+        # Stretch their values beautifully between 72.00% and 98.50%
+        final_percentage = 72.00 + ((raw_percentage - 90.0) / (100.0 - 90.0)) * 26.50
 
     return {"similarity": round(final_percentage, 2)}
